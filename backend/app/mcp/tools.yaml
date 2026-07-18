@@ -1,0 +1,10 @@
+allowed_queries:
+  get_projects:
+    sql: "SELECT id, project_name, status, budget FROM client_projects WHERE client_id = :client_id"
+    description: "Get all active projects and budgets for a specific client"
+  get_contacts:
+    sql: "SELECT id, contact_name, contact_email FROM client_contacts WHERE client_id = :client_id"
+    description: "Get primary client contacts details"
+  get_feedback:
+    sql: "SELECT id, feedback_text, received_at FROM client_feedback WHERE client_id = :client_id"
+    description: "Get historical client feedback notes"
