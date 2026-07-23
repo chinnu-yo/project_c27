@@ -42,16 +42,16 @@ These specific versions are locked to protect database query operations, local v
 Plaintext
 # Server Gateway Ingress Engine
 fastapi==0.111.0
-uvicorn==0.30.1
+uvicorn==0.51.0
 pydantic==2.7.4
 
 # Storage & Local Vector Moat Layer
-chromadb==0.5.3
+chromadb==1.5.9
 pymongo==4.7.3
 sentence-transformers==3.0.1
 
 # Core Agent Coordination Architecture
-google-antigravity==1.0.4
+google-antigravity==0.1.7
 
 # Computational Utilities & Network Connectors
 google-generativeai==0.7.2

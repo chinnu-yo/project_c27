@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Harmonious Dark Mode System */
+  --bg-obsidian: hsl(224, 25%, 6%);
+  --bg-card: hsla(224, 20%, 10%, 0.6);
+  --bg-card-hover: hsla(224, 20%, 14%, 0.8);
+  --border-glass: hsla(224, 15%, 20%, 0.4);
+  --border-glass-focus: hsla(262, 80%, 65%, 0.5);
+  
+  /* Text and Accents */
+  --text-primary: hsl(210, 40%, 98%);
+  --text-secondary: hsl(215, 20%, 75%);
+  --text-muted: hsl(215, 12%, 50%);
+  
+  --color-gemini: hsl(262, 80%, 65%);
+  --color-gemini-gradient: linear-gradient(135deg, hsl(262, 80%, 65%) 0%, hsl(290, 75%, 60%) 100%);
+  --color-teal: hsl(174, 75%, 45%);
+  --color-alert: hsl(342, 85%, 60%);
+  
+  /* Layout constraints */
+  --font-outfit: 'Outfit', sans-serif;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-outfit);
+}
+
+body {
+  background-color: var(--bg-obsidian);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism utility card */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  padding: 24px;
+  transition: var(--transition-smooth);
+}
+
+.glass-card:hover {
+  background: var(--bg-card-hover);
+  border-color: hsla(224, 15%, 25%, 0.6);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transform: translateY(-2px);
+}
+
+/* Sleek interactive inputs */
+.glass-input {
+  background: hsla(224, 20%, 8%, 0.8);
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 12px 16px;
+  font-size: 14px;
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+.glass-input:focus {
+  border-color: var(--border-glass-focus);
+  box-shadow: 0 0 0 2px hsla(262, 80%, 65%, 0.2);
+}
+
+/* High-aesthetic buttons */
+.btn-primary {
+  background: var(--color-gemini-gradient);
+  border: none;
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 500;
+  padding: 12px 24px;
+  transition: var(--transition-smooth);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 500;
+  padding: 12px 24px;
+  transition: var(--transition-smooth);
+}
+
+.btn-secondary:hover {
+  background: hsla(224, 20%, 15%, 0.5);
+  color: var(--text-primary);
+}
