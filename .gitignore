@@ -1,20 +1,74 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
 venv/
+env/
+
+# Environment variables
 .env
 
-# Node.js
+# Database files
+*.db
+*.sqlite3
+
+# ChromaDB
+chroma_data/
+backend/chroma_data/
+
+# Logs
+*.log
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Node
+frontend/node_modules/
 node_modules/
+
+# Build files
+frontend/dist/
+frontend/build/
+
+# Vite
+frontend/.vite/
+
+# npm/yarn logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js
+frontend/.next/
 .next/
+
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# Build output
 dist/
 build/
-package-lock.json
-
-# Local databases
-chroma_data/
-client_vault.db
-
-# OS
-.DS_Store
-Thumbs.db

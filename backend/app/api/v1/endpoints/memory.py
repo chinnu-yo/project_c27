@@ -14,11 +14,14 @@ async def validate_memory_preference(
     chroma: ChromaMemoryLayer = Depends(get_chroma_service)
 ):
     """Transition notification to approved/rejected state and write to offline vector space if approved."""
+    state_map = {"approve": "approved", "reject": "rejected"}
+    current_state = state_map.get(payload.action, "approved")
+
     # Step 1: Update status state inside MongoDB Atlas
     mongo.update_notification(
         notification_id=payload.notification_id,
         client_id=payload.client_id,
-        status=payload.action
+        status=current_state
     )
 
     chroma_id = None
@@ -36,7 +39,7 @@ async def validate_memory_preference(
     return MemoryValidateResponseModel(
         status="success",
         notification_id=payload.notification_id,
-        current_state=payload.action,
+        current_state=current_state,
         chroma_id=chroma_id
     )
 
