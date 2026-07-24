@@ -68,7 +68,7 @@ export default function TiptapEditor({ content, onChange }: TiptapEditorProps) {
       </div>
 
       {/* Editor text sheet container */}
-      <div style={{ minHeight: '300px', outline: 'none' }}>
+      <div id="tiptap-print-container" className="tiptap-editor-sheet" style={{ minHeight: '300px', outline: 'none' }}>
         <EditorContent editor={editor} style={{ outline: 'none', color: 'var(--text-primary)' }} />
       </div>
     </div>

@@ -104,3 +104,91 @@ body {
   background: hsla(224, 20%, 15%, 0.5);
   color: var(--text-primary);
 }
+
+/* Tiptap Table & Report Document Styling */
+.tiptap-editor-sheet table {
+  border-collapse: collapse;
+  margin: 16px 0;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--border-glass);
+}
+
+.tiptap-editor-sheet th {
+  background: hsla(262, 80%, 65%, 0.15);
+  color: var(--text-primary);
+  font-weight: 600;
+  padding: 10px 14px;
+  text-align: left;
+  border: 1px solid var(--border-glass);
+}
+
+.tiptap-editor-sheet td {
+  padding: 10px 14px;
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  background: hsla(224, 20%, 8%, 0.4);
+}
+
+.tiptap-editor-sheet tr:nth-child(even) td {
+  background: hsla(224, 20%, 12%, 0.4);
+}
+
+.tiptap-editor-sheet h1 {
+  font-size: 24px;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-glass);
+  padding-bottom: 8px;
+}
+
+.tiptap-editor-sheet h2 {
+  font-size: 18px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  color: var(--color-teal);
+}
+
+.tiptap-editor-sheet p {
+  line-height: 1.6;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+
+.tiptap-editor-sheet ul, .tiptap-editor-sheet ol {
+  padding-left: 24px;
+  margin-bottom: 12px;
+}
+
+.tiptap-editor-sheet li {
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+
+/* Print optimization for PDF export */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .tiptap-editor-sheet {
+    color: #111827 !important;
+    background: #ffffff !important;
+  }
+  .tiptap-editor-sheet table,
+  .tiptap-editor-sheet th,
+  .tiptap-editor-sheet td {
+    border-color: #d1d5db !important;
+    color: #111827 !important;
+  }
+  .tiptap-editor-sheet th {
+    background-color: #f3f4f6 !important;
+  }
+  .tiptap-editor-sheet td {
+    background-color: #ffffff !important;
+  }
+  .tiptap-editor-sheet h1, .tiptap-editor-sheet h2, .tiptap-editor-sheet p, .tiptap-editor-sheet li {
+    color: #111827 !important;
+  }
+}

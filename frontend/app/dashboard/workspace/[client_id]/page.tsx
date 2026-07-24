@@ -61,6 +61,27 @@ export default function WorkspacePage() {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('tiptap-print-container');
+    if (!element) return;
+
+    try {
+      // Dynamically import html2pdf.js for client-side PDF rendering
+      const html2pdf = (await import('html2pdf.js')).default;
+      const opt = {
+        margin: 12,
+        filename: `${client_id}_Executive_Report.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+      };
+      html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      // Fallback print window if library environment fails
+      window.print();
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div>
@@ -102,6 +123,9 @@ export default function WorkspacePage() {
             {editorContent && (
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 {saveStatus && <span style={{ fontSize: '13px', color: 'var(--color-teal)' }}>{saveStatus}</span>}
+                <button onClick={handleDownloadPDF} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '13px', color: 'var(--color-teal)', borderColor: 'var(--color-teal)' }}>
+                  Download PDF
+                </button>
                 <button onClick={handleSave} className="btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
                   Save Canvas
                 </button>
