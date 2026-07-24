@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWorkspaceStore } from '../store';
+import { apiRequest } from '../api-client';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -20,17 +21,27 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    // Simulate session authentication delay and token issuance
-    setTimeout(() => {
-      if (username.trim() && password.trim()) {
-        setClientId(clientField);
-        setJwtToken("mock_jwt_session_token_xyz");
+    try {
+      const data = await apiRequest<{ access_token: string; token_type: string; client_id: string }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          client_id: clientField,
+          password: password
+        })
+      });
+
+      if (data && data.access_token) {
+        setClientId(data.client_id || clientField);
+        setJwtToken(data.access_token);
         router.push('/dashboard');
       } else {
-        setError('Please enter valid username and password credentials.');
+        setError('Invalid credentials.');
       }
+    } catch (err: any) {
+      setError('Invalid credentials. Please check tenant client ID and password.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -98,7 +109,6 @@ export default function LoginPage() {
               onChange={(e) => setUsername(e.target.value)}
               placeholder="admin"
               className="glass-input"
-              required
             />
           </div>
 

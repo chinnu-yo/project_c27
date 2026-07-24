@@ -62,6 +62,14 @@ class SQLiteService:
                     received_at INTEGER NOT NULL
                 )
             """)
+            # 4. Credentials Table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS client_credentials (
+                    client_id TEXT PRIMARY KEY,
+                    password_hash TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                )
+            """)
             conn.commit()
 
             # Seed sandbox data for client_abc and client_xyz if empty
@@ -86,9 +94,41 @@ class SQLiteService:
                     elif item[0].startswith("feed_"):
                         cursor.execute("INSERT OR REPLACE INTO client_feedback VALUES (?, ?, ?, ?)", item)
                 conn.commit()
+
+            # Seed credentials for client_abc and client_xyz if empty
+            cursor.execute("SELECT COUNT(*) FROM client_credentials")
+            if cursor.fetchone()[0] == 0:
+                import time
+                from backend.app.core.security import get_password_hash
+                now = int(time.time())
+                cred_seeds = [
+                    ("client_abc", get_password_hash("password_abc"), now),
+                    ("client_xyz", get_password_hash("password_xyz"), now),
+                ]
+                for cred in cred_seeds:
+                    cursor.execute("INSERT OR REPLACE INTO client_credentials VALUES (?, ?, ?)", cred)
+                conn.commit()
+
             conn.close()
         except Exception as e:
             raise DatabaseError(f"SQLite DB initialization failed: {str(e)}")
+
+    def get_client_credentials(self, client_id: str) -> Dict[str, Any]:
+        """Retrieves stored credentials for a given client_id."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT client_id, password_hash, created_at FROM client_credentials WHERE client_id = ?",
+                (client_id,)
+            )
+            row = cursor.fetchone()
+            conn.close()
+            return dict(row) if row else None
+        except sqlite3.Error as e:
+            raise DatabaseError(f"Failed to fetch client credentials: {str(e)}")
+
 
     def run_query(self, query_name: str, params: Dict[str, Any], client_id: str) -> List[Dict[str, Any]]:
         """Executes a mapped read-only query safely with strict tenant isolation."""
