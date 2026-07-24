@@ -27,29 +27,44 @@ class CriticService:
         message = None
 
         if settings.gemini_api_key:
-            try:
-                prompt = (
-                    "You are a behavioral Critic loop. Analyze the following Tiptap report layout document JSON. "
-                    "Extract any repetitive formatting rules, template definitions, or styles that the user might want "
-                    "saved for future generations. "
-                    "Respond ONLY with a valid JSON payload containing:\n"
-                    "{\n"
-                    "  'extracted_fact': 'A single declarative rule statement (e.g. Always format Q3 numbers in a table)',\n"
-                    "  'message': 'A message for the user asking to approve this rule'\n"
-                    "}\n"
-                    "If no clear preference can be extracted, return empty fields.\n\n"
-                    f"Document JSON:\n{json.dumps(tiptap_json)}"
-                )
-                model = genai.GenerativeModel(
-                    model_name="gemini-1.5-flash",
-                    generation_config={"response_mime_type": "application/json"}
-                )
-                response = model.generate_content(contents=prompt)
-                res_data = json.loads(response.text)
-                extracted_fact = res_data.get("extracted_fact")
-                message = res_data.get("message")
-            except Exception:
-                pass
+            genai.configure(api_key=settings.gemini_api_key)
+            prompt = (
+                "You are a behavioral Critic loop. Analyze the following Tiptap report layout document JSON. "
+                "Extract any repetitive formatting rules, template definitions, or styles that the user might want "
+                "saved for future generations. "
+                "Respond ONLY with a valid JSON payload containing:\n"
+                "{\n"
+                "  'extracted_fact': 'A single declarative rule statement (e.g. Always format Q3 numbers in a table)',\n"
+                "  'message': 'A message for the user asking to approve this rule'\n"
+                "}\n"
+                "If no clear preference can be extracted, return empty fields.\n\n"
+                f"Document JSON:\n{json.dumps(tiptap_json)}"
+            )
+
+            for m_name in ["gemini-1.5-flash", "gemini-2.5-flash"]:
+                clean_name = m_name.replace("models/", "")
+                try:
+                    model = genai.GenerativeModel(
+                        model_name=clean_name,
+                        generation_config={"response_mime_type": "application/json"}
+                    )
+                    response = model.generate_content(contents=prompt)
+                    if response and response.text:
+                        raw_text = response.text.strip()
+                        if raw_text.startswith("```"):
+                            lines = raw_text.splitlines()
+                            if lines[0].startswith("```"):
+                                lines = lines[1:]
+                            if lines and lines[-1].startswith("```"):
+                                lines = lines[:-1]
+                            raw_text = "\n".join(lines).strip()
+                        res_data = json.loads(raw_text)
+                        extracted_fact = res_data.get("extracted_fact")
+                        message = res_data.get("message")
+                        if extracted_fact:
+                            break
+                except Exception:
+                    pass
 
         # Fallback simulation if no API key or generation failed
         if not extracted_fact:

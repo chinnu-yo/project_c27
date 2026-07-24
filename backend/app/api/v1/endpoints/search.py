@@ -51,25 +51,27 @@ async def cross_app_search(
 
     # Synthesize answer using Gemini LLM if key is available
     if settings.gemini_api_key:
-        try:
-            genai.configure(api_key=settings.gemini_api_key)
-            prompt = (
-                "You are an operations summary assistant. "
-                f"Synthesize a clear, short plain text answer specifically answering the user query: '{raw_query}'.\n"
-                f"Client ID: {client_id}\n"
-                f"Retrieved Metrics context: {json.dumps(data_pool)}\n"
-                "Return only a concise, direct answer based strictly on the retrieved data."
-            )
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(contents=prompt)
-            if response and response.text:
-                return CrossAppSearchResponseModel(
-                    status="success",
-                    answer=response.text.strip(),
-                    sources_consulted=list(dict.fromkeys(sources))
-                )
-        except Exception:
-            pass
+        genai.configure(api_key=settings.gemini_api_key)
+        prompt = (
+            "You are an operations summary assistant. "
+            f"Synthesize a clear, short plain text answer specifically answering the user query: '{raw_query}'.\n"
+            f"Client ID: {client_id}\n"
+            f"Retrieved Metrics context: {json.dumps(data_pool)}\n"
+            "Return only a concise, direct answer based strictly on the retrieved data."
+        )
+        for m_name in ["gemini-1.5-flash", "gemini-2.5-flash"]:
+            clean_name = m_name.replace("models/", "")
+            try:
+                model = genai.GenerativeModel(clean_name)
+                response = model.generate_content(contents=prompt)
+                if response and response.text:
+                    return CrossAppSearchResponseModel(
+                        status="success",
+                        answer=response.text.strip(),
+                        sources_consulted=list(dict.fromkeys(sources))
+                    )
+            except Exception:
+                pass
 
     # Dynamic fallback synthesis logic when LLM key is absent or call fails
     answers = []

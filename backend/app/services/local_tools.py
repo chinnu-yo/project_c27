@@ -37,6 +37,7 @@ class LocalToolsManager:
             # Sandbox fallback payload if GEMINI_API_KEY is not defined
             return self._get_fallback_tiptap(user_prompt)
 
+        genai.configure(api_key=settings.gemini_api_key)
         client_id = blueprint.get("client_id", "client_abc")
         
         # Step 1: Pre-fetch metrics data locally to feed variables straight to LLM context pool
@@ -55,27 +56,53 @@ class LocalToolsManager:
             f"- QuickBooks: {json.dumps(qb_data)}\n"
             f"- SQLite Projects: {json.dumps(projects)}\n\n"
             "Respond ONLY with a valid, clean JSON payload matching the Tiptap structure: "
-            "{'type': 'doc', 'content': [...]}. No markdown wrap, no explanations."
+            "{\"type\": \"doc\", \"content\": [...]}. No markdown wrap, no explanations."
         )
 
-        try:
-            model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash",
-                generation_config={"response_mime_type": "application/json"}
-            )
-            response = model.generate_content(
-                contents=[system_instruction, f"User Request: {user_prompt}"]
-            )
-            return json.loads(response.text)
-        except Exception as e:
-            # Graceful error validation boundary
-            return {
-                "type": "doc",
-                "content": [
-                    {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Generation Failure"}]},
-                    {"type": "paragraph", "content": [{"type": "text", "text": f"Error message details: {str(e)}"}]}
-                ]
-            }
+        candidate_models = ["gemini-1.5-flash", "gemini-2.5-flash"]
+        last_exception = None
+
+        for m_name in candidate_models:
+            clean_model_name = m_name.replace("models/", "")
+            for gen_config in [{"response_mime_type": "application/json"}, None]:
+                try:
+                    if gen_config:
+                        model = genai.GenerativeModel(
+                            model_name=clean_model_name,
+                            generation_config=gen_config
+                        )
+                    else:
+                        model = genai.GenerativeModel(model_name=clean_model_name)
+
+                    response = model.generate_content(
+                        contents=[system_instruction, f"User Request: {user_prompt}"]
+                    )
+
+                    if response and response.text:
+                        raw_text = response.text.strip()
+                        if raw_text.startswith("```"):
+                            lines = raw_text.splitlines()
+                            if lines[0].startswith("```"):
+                                lines = lines[1:]
+                            if lines and lines[-1].startswith("```"):
+                                lines = lines[:-1]
+                            raw_text = "\n".join(lines).strip()
+
+                        tiptap_json = json.loads(raw_text)
+                        if isinstance(tiptap_json, dict) and tiptap_json.get("type") == "doc":
+                            return tiptap_json
+                except Exception as e:
+                    last_exception = e
+                    continue
+
+        # Graceful error validation boundary
+        return {
+            "type": "doc",
+            "content": [
+                {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Generation Failure"}]},
+                {"type": "paragraph", "content": [{"type": "text", "text": f"Error message details: {str(last_exception or 'Model service error')}"}]}
+            ]
+        }
 
     def _get_fallback_tiptap(self, user_prompt: str) -> dict:
         """Fallback JSON structure for sandbox environments without API keys."""
