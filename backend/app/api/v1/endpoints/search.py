@@ -19,25 +19,26 @@ async def cross_app_search(
 ):
     """Global cross-app search query aggregating mock pipelines and local SQLite data."""
     client_id = payload.client_id
-    query = payload.query_string.lower()
+    raw_query = payload.query or payload.query_string or ""
+    query = raw_query.lower()
 
     data_pool = {}
     sources = []
 
     # Simple matching checks to route queries dynamically
-    if any(k in query for k in ["ga4", "traffic", "sessions", "pageviews"]):
+    if any(k in query for k in ["ga4", "traffic", "sessions", "pageviews", "analytics", "visitor"]):
         data_pool["ga4"] = get_ga4_metrics(client_id)
         sources.append("ga4")
 
-    if any(k in query for k in ["invoice", "quickbooks", "billing", "owe", "outstanding"]):
+    if any(k in query for k in ["invoice", "quickbooks", "billing", "owe", "outstanding", "finance", "financial"]):
         data_pool["quickbooks"] = get_quickbooks_data(client_id)
         sources.append("quickbooks")
 
-    if any(k in query for k in ["project", "budget", "active"]):
+    if any(k in query for k in ["project", "budget", "active", "campaign", "seo"]):
         data_pool["projects"] = sqlite_service.run_query("get_projects", {}, client_id)
         sources.append("database")
 
-    if any(k in query for k in ["contact", "email", "phone"]):
+    if any(k in query for k in ["contact", "email", "phone", "client", "person", "user"]):
         data_pool["contacts"] = sqlite_service.run_query("get_contacts", {}, client_id)
         sources.append("database")
 
@@ -51,39 +52,60 @@ async def cross_app_search(
     # Synthesize answer using Gemini LLM if key is available
     if settings.gemini_api_key:
         try:
+            genai.configure(api_key=settings.gemini_api_key)
             prompt = (
                 "You are an operations summary assistant. "
-                "Synthesize a clear, short plain text answer answering the user query. "
-                f"User query: '{payload.query_string}'\n"
+                f"Synthesize a clear, short plain text answer specifically answering the user query: '{raw_query}'.\n"
                 f"Client ID: {client_id}\n"
                 f"Retrieved Metrics context: {json.dumps(data_pool)}\n"
-                "Return only a single short sentence answering the query directly based on the data."
+                "Return only a concise, direct answer based strictly on the retrieved data."
             )
             model = genai.GenerativeModel("gemini-1.5-flash")
             response = model.generate_content(contents=prompt)
-            return CrossAppSearchResponseModel(
-                status="success",
-                answer=response.text.strip(),
-                sources_consulted=sources
-            )
+            if response and response.text:
+                return CrossAppSearchResponseModel(
+                    status="success",
+                    answer=response.text.strip(),
+                    sources_consulted=list(dict.fromkeys(sources))
+                )
         except Exception:
             pass
 
-    # Fallback sandbox synthesis logic
+    # Dynamic fallback synthesis logic when LLM key is absent or call fails
     answers = []
     if "ga4" in data_pool and data_pool["ga4"]:
-        sessions = data_pool["ga4"][0].get("sessions", 0)
-        answers.append(f"GA4 recorded {sessions:,} sessions")
+        metrics = data_pool["ga4"][0] if isinstance(data_pool["ga4"], list) and data_pool["ga4"] else {}
+        sessions = metrics.get("sessions", 0)
+        pageviews = metrics.get("pageviews", 0)
+        source_name = metrics.get("traffic_source", "search")
+        answers.append(f"GA4 recorded {sessions:,} sessions ({pageviews:,} pageviews via {source_name})")
+
     if "quickbooks" in data_pool and data_pool["quickbooks"]:
         total = data_pool["quickbooks"].get("outstanding_invoices_total", 0.0)
-        answers.append(f"outstanding QuickBooks invoices total ${total:,.2f}")
-    if "projects" in data_pool and data_pool["projects"]:
-        proj_count = len(data_pool["projects"])
-        answers.append(f"{proj_count} active projects in the vault")
+        inv_count = data_pool["quickbooks"].get("invoice_count", 0)
+        answers.append(f"outstanding QuickBooks invoices total ${total:,.2f} across {inv_count} invoice(s)")
 
-    final_answer = f"For {client_id} this month: " + ", while ".join(answers) + "."
+    if "projects" in data_pool and data_pool["projects"]:
+        projs = data_pool["projects"]
+        names = [p.get("project_name") for p in projs if p.get("project_name")]
+        if names:
+            answers.append(f"active projects include {', '.join(names)}")
+        else:
+            answers.append(f"{len(projs)} active projects in vault")
+
+    if "contacts" in data_pool and data_pool["contacts"]:
+        conts = data_pool["contacts"]
+        c_names = [c.get("contact_name") for c in conts if c.get("contact_name")]
+        if c_names:
+            answers.append(f"contacts on file: {', '.join(c_names)}")
+
+    if answers:
+        final_answer = f"For query '{raw_query}' ({client_id}): " + ", while ".join(answers) + "."
+    else:
+        final_answer = f"No workspace records found matching query '{raw_query}' for {client_id}."
+
     return CrossAppSearchResponseModel(
         status="success",
         answer=final_answer,
-        sources_consulted=sources
+        sources_consulted=list(dict.fromkeys(sources))
     )

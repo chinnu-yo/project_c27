@@ -25,7 +25,8 @@ export default function SearchBox() {
         method: 'POST',
         body: JSON.stringify({
           client_id: clientId,
-          query_string: query
+          query_string: query,
+          query: query
         })
       });
       setResult({
