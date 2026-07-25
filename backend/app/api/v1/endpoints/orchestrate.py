@@ -17,7 +17,8 @@ async def orchestrate_report(
         tiptap_out = await engine.execute_workflow(
             client_id=payload.client_id,
             raw_user_prompt=payload.user_prompt,
-            background_tasks=background_tasks
+            background_tasks=background_tasks,
+            template_id=payload.template_id
         )
 
         # Retrieve count of rules dynamically from chroma

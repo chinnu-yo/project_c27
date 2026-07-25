@@ -15,6 +15,7 @@ class TiptapDocContainer(BaseModel):
 class OrchestrateRequestModel(BaseModel):
     client_id: str = Field(..., example="client_abc")
     user_prompt: str = Field(..., example="Generate the Q3 performance report")
+    template_id: Optional[str] = Field(None, example="tmpl_12345678")
 
 class OrchestrateResponseModel(BaseModel):
     status: Literal["success", "error"]

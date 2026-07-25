@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import BackgroundTasks
 from backend.app.services.chroma_service import ChromaMemoryLayer
 from backend.app.services.mongo_service import MongoService
@@ -21,7 +22,8 @@ class OrchestrationEngine:
         self,
         client_id: str,
         raw_user_prompt: str,
-        background_tasks: BackgroundTasks
+        background_tasks: BackgroundTasks,
+        template_id: Optional[str] = None
     ) -> dict:
         """Coordinates retrieval of constraints, calls generation suite, and triggers background Critic review."""
         
@@ -31,10 +33,22 @@ class OrchestrationEngine:
             query=raw_user_prompt
         )
         
-        # Step 2: Grab layout template configurations from MongoDB Atlas
-        base_blueprint = self.mongo.get_template(client_id=client_id)
-        if not base_blueprint:
-            base_blueprint = self.mongo._get_fallback_template(client_id=client_id)
+        # Step 2: Grab layout template configurations
+        if template_id:
+            # Fetch specific template structure using get_template_by_id (raises error if invalid/tenant mismatch)
+            template_doc = self.mongo.get_template_by_id(template_id=template_id, client_id=client_id)
+            extracted = template_doc.get("extracted_structure", {})
+            base_blueprint = {
+                "client_id": client_id,
+                "template_id": template_id,
+                "template_name": template_doc.get("template_name"),
+                "tiptap_schema_blueprint": extracted.get("tiptap_schema_blueprint", {}),
+                "extracted_structure": extracted
+            }
+        else:
+            base_blueprint = self.mongo.get_template(client_id=client_id)
+            if not base_blueprint:
+                base_blueprint = self.mongo._get_fallback_template(client_id=client_id)
         
         # Step 3: Run local tool compilation loop and call LLM context block
         compiled_tiptap_json = await self.tools.execute_in_app_loop(

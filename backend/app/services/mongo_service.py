@@ -5,6 +5,7 @@ from backend.app.core.config import settings
 
 class MongoService:
     def __init__(self, uri: str = settings.mongodb_uri):
+        self._in_memory_templates: Dict[str, Dict[str, Any]] = {}
         try:
             # Short timeout to detect connection issues immediately during startup
             self.client = MongoClient(uri, serverSelectionTimeoutMS=1500)
@@ -21,6 +22,7 @@ class MongoService:
         if self.db is not None:
             try:
                 self.db.report_templates.create_index("client_id")
+                self.db.report_templates.create_index("template_id", unique=True)
                 self.db.dashboard_notifications.create_index("client_id")
                 self.db.reports.create_index("client_id")
             except Exception:
@@ -35,7 +37,71 @@ class MongoService:
                     return res
             except Exception:
                 pass
+        
+        # Check in-memory stored templates if any exist for client
+        for t in self._in_memory_templates.values():
+            if t.get("client_id") == client_id:
+                return t
+
         return self._get_fallback_template(client_id)
+
+    def get_template_by_id(self, template_id: str, client_id: str) -> Dict[str, Any]:
+        """
+        Fetches a specific template by template_id for client_id.
+        Raises KeyError/ValueError if missing or client mismatch — does NOT silently fall back.
+        """
+        res = None
+        if self.db is not None:
+            try:
+                res = self.db.report_templates.find_one({"template_id": template_id})
+            except Exception:
+                pass
+
+        if res is None:
+            res = self._in_memory_templates.get(template_id)
+
+        if not res:
+            raise KeyError(f"Template with ID '{template_id}' not found.")
+
+        if res.get("client_id") != client_id:
+            raise ValueError(f"Template '{template_id}' does not belong to client '{client_id}'.")
+
+        return res
+
+    def save_template(self, doc: Dict[str, Any]) -> str:
+        """Stores template metadata and parsed structure in database and memory cache."""
+        template_id = doc.get("template_id")
+        self._in_memory_templates[template_id] = doc
+        if self.db is not None:
+            try:
+                self.db.report_templates.insert_one(doc)
+            except Exception:
+                pass
+        return template_id
+
+    def list_templates(self, client_id: str) -> List[Dict[str, Any]]:
+        """Retrieves list of all templates for a client_id."""
+        templates_dict: Dict[str, Dict[str, Any]] = {}
+        
+        if self.db is not None:
+            try:
+                cursor = self.db.report_templates.find({"client_id": client_id})
+                for item in cursor:
+                    item_copy = {**item}
+                    if "_id" in item_copy:
+                        item_copy["_id"] = str(item_copy["_id"])
+                    t_id = item_copy.get("template_id")
+                    if t_id:
+                        templates_dict[t_id] = item_copy
+            except Exception:
+                pass
+
+        # Include in-memory templates
+        for t_id, item in self._in_memory_templates.items():
+            if item.get("client_id") == client_id:
+                templates_dict[t_id] = item
+
+        return list(templates_dict.values())
 
     def save_report(self, client_id: str, report_name: str, tiptap_json: dict) -> str:
         """Stores report canvas structure, returning a simulated ID if saving fails."""

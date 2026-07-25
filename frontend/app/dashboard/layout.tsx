@@ -17,6 +17,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navItems = [
     { name: 'Dashboard Hub', href: '/dashboard' },
     { name: 'Memory Approval Feed', href: '/dashboard/memory' },
+    { name: 'Document Templates', href: '/dashboard/templates' },
     { name: 'Workspace Canvas', href: `/dashboard/workspace/${clientId}` }
   ];
 

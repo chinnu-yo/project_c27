@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { apiRequest } from '../../../api-client';
 import TiptapEditor from '../../../components/TiptapEditor';
+
+interface TemplateOption {
+  template_id: string;
+  template_name: string;
+  description: string;
+  file_type: string;
+}
 
 export default function WorkspacePage() {
   const params = useParams();
@@ -15,17 +22,49 @@ export default function WorkspacePage() {
   const [saveStatus, setSaveStatus] = useState('');
   const [error, setError] = useState('');
 
+  // Templates selection state
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  useEffect(() => {
+    const fetchClientTemplates = async () => {
+      if (!client_id) return;
+      setLoadingTemplates(true);
+      try {
+        const data = await apiRequest(`/templates/list?client_id=${encodeURIComponent(client_id)}`);
+        if (data.status === 'success' && Array.isArray(data.templates)) {
+          setTemplates(data.templates);
+          if (data.templates.length > 0) {
+            setSelectedTemplateId(data.templates[0].template_id);
+          }
+        }
+      } catch (err) {
+        // Fallback silently if fetching templates fails
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+
+    fetchClientTemplates();
+  }, [client_id]);
+
   const handleOrchestrate = async () => {
     setLoading(true);
     setError('');
     setSaveStatus('');
     try {
+      const payload: any = {
+        client_id: client_id,
+        user_prompt: prompt
+      };
+      if (selectedTemplateId) {
+        payload.template_id = selectedTemplateId;
+      }
+
       const data = await apiRequest('/orchestrate', {
         method: 'POST',
-        body: JSON.stringify({
-          client_id: client_id,
-          user_prompt: prompt
-        })
+        body: JSON.stringify(payload)
       });
       if (data.status === 'success') {
         setEditorContent(data.tiptap_json);
@@ -67,7 +106,9 @@ export default function WorkspacePage() {
 
     try {
       // Dynamically import html2pdf.js for client-side PDF rendering
-      const html2pdf = (await import('html2pdf.js')).default;
+      // @ts-ignore
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = (html2pdfModule.default || html2pdfModule) as any;
       const opt = {
         margin: 12,
         filename: `${client_id}_Executive_Report.pdf`,
@@ -81,6 +122,8 @@ export default function WorkspacePage() {
       window.print();
     }
   };
+
+  const activeSelectedTemplate = templates.find(t => t.template_id === selectedTemplateId);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -101,8 +144,36 @@ export default function WorkspacePage() {
         {/* Left Control Panel */}
         <div className="glass-card" style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Report Directives</h3>
+          
+          {/* Template Picker */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>User Prompt Instruction</label>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Document Template Selection
+            </label>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(e.target.value)}
+              className="glass-input"
+              style={{ width: '100%', padding: '10px 12px', fontSize: '14px', backgroundColor: 'var(--bg-card)' }}
+            >
+              <option value="">-- Default Executive Blueprint --</option>
+              {templates.map((t) => (
+                <option key={t.template_id} value={t.template_id}>
+                  {t.template_name} (.{t.file_type})
+                </option>
+              ))}
+            </select>
+            {activeSelectedTemplate && (
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '6px', marginTop: '4px' }}>
+                <strong style={{ color: 'var(--color-teal)' }}>Template Directive:</strong> {activeSelectedTemplate.description}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
+              User Prompt Instruction
+            </label>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
