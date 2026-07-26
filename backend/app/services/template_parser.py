@@ -6,7 +6,7 @@ import pptx
 def parse_docx_structure(file_bytes: bytes) -> Dict[str, Any]:
     """
     Parses a .docx file buffer using python-docx.
-    Extracts heading hierarchy, paragraph styles, section ordering, and constructs
+    Extracts heading hierarchy, paragraph styles, section ordering, tables, and constructs
     a Tiptap-compatible schema blueprint for report orchestration.
     """
     doc = docx.Document(io.BytesIO(file_bytes))
@@ -23,7 +23,9 @@ def parse_docx_structure(file_bytes: bytes) -> Dict[str, Any]:
 
     headings_info: List[Dict[str, Any]] = []
     paragraphs_info: List[Dict[str, Any]] = []
+    tables_info: List[Dict[str, Any]] = []
     tiptap_nodes: List[Dict[str, Any]] = []
+    text_layout_lines: List[str] = []
 
     for p in doc.paragraphs:
         text = p.text.strip()
@@ -48,6 +50,7 @@ def parse_docx_structure(file_bytes: bytes) -> Dict[str, Any]:
                 "attrs": {"level": min(max(level, 1), 6)},
                 "content": [{"type": "text", "text": text}]
             })
+            text_layout_lines.append(f"{'#' * level} {text}")
         else:
             paragraphs_info.append({
                 "style_name": style_name,
@@ -57,6 +60,53 @@ def parse_docx_structure(file_bytes: bytes) -> Dict[str, Any]:
                 "type": "paragraph",
                 "content": [{"type": "text", "text": text}]
             })
+            text_layout_lines.append(text)
+
+    # Extract tables from .docx document
+    for t_idx, table in enumerate(doc.tables, start=1):
+        table_rows_data: List[List[str]] = []
+        tiptap_row_nodes: List[Dict[str, Any]] = []
+
+        for r_idx, row in enumerate(table.rows):
+            row_cells = [cell.text.strip() for cell in row.cells]
+            table_rows_data.append(row_cells)
+
+            cell_type = "tableHeader" if r_idx == 0 else "tableCell"
+            tiptap_cells = []
+            for cell_text in row_cells:
+                tiptap_cells.append({
+                    "type": cell_type,
+                    "content": [{
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": cell_text or " "}]
+                    }]
+                })
+            tiptap_row_nodes.append({
+                "type": "tableRow",
+                "content": tiptap_cells
+            })
+
+        tables_info.append({
+            "table_number": t_idx,
+            "row_count": len(table.rows),
+            "col_count": len(table.columns) if table.columns else 0,
+            "rows": table_rows_data
+        })
+
+        if tiptap_row_nodes:
+            tiptap_nodes.append({
+                "type": "table",
+                "content": tiptap_row_nodes
+            })
+            formatted_rows = [" | ".join(r) for r in table_rows_data]
+            text_layout_lines.append(f"\n[TABLE FORMAT:\n" + "\n".join(formatted_rows) + "\n]")
+
+    raw_text_layout = "\n".join(text_layout_lines) if text_layout_lines else (
+        "1. Executive Financial Summary\n"
+        "2. Invoicing & Payment Breakdown\n"
+        "3. CRM Pipeline\n"
+        "4. Financial Recommendations"
+    )
 
     # Ensure a fallback tiptap_schema_blueprint node exists
     if not tiptap_nodes:
@@ -70,10 +120,14 @@ def parse_docx_structure(file_bytes: bytes) -> Dict[str, Any]:
         "sections": sections_info,
         "headings": headings_info,
         "paragraphs": paragraphs_info,
+        "tables": tables_info,
+        "raw_text_layout": raw_text_layout,
+        "template_text_content": raw_text_layout,
         "structure_summary": {
             "section_count": len(sections_info),
             "heading_count": len(headings_info),
-            "paragraph_count": len(paragraphs_info)
+            "paragraph_count": len(paragraphs_info),
+            "table_count": len(tables_info)
         },
         "tiptap_schema_blueprint": {
             "type": "doc",

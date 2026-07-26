@@ -259,14 +259,27 @@ class MongoService:
 
     def _get_fallback_template(self, client_id: str) -> Dict[str, Any]:
         """Static layout schema for offline sandbox testing environments."""
+        template_text = (
+            "1. Executive Financial Summary\n"
+            "2. Invoicing & Payment Breakdown\n"
+            "3. CRM Pipeline\n"
+            "4. Financial Recommendations"
+        )
         return {
             "client_id": client_id,
-            "template_name": "Executive Quarterly Report",
+            "template_name": "Executive Corporate Report",
+            "extracted_structure": {
+                "template_text_content": template_text,
+                "raw_text_layout": template_text
+            },
             "tiptap_schema_blueprint": {
                 "type": "doc",
                 "content": [
-                    { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "Performance Review" }] },
-                    { "type": "paragraph", "content": [{ "type": "text", "text": "Overview of operational metrics." }] }
+                    { "type": "heading", "attrs": { "level": 1 }, "content": [{ "type": "text", "text": "Executive Financial Summary" }] },
+                    { "type": "paragraph", "content": [{ "type": "text", "text": "Overview of financial operations and performance." }] },
+                    { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Invoicing & Payment Breakdown" }] },
+                    { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "CRM Pipeline" }] },
+                    { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Financial Recommendations" }] }
                 ]
             }
         }

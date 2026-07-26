@@ -47,24 +47,54 @@ class LocalToolsManager:
         qb_data = get_quickbooks_data(client_id)
         projects = db_service.run_query("get_projects", {}, client_id)
 
-        # Assemble prompt system instructions
+        # Extract template content layout string from blueprint
+        extracted_struct = blueprint.get("extracted_structure", {})
+        template_text_content = (
+            extracted_struct.get("template_text_content") or
+            extracted_struct.get("raw_text_layout")
+        )
+
+        if not template_text_content:
+            nodes = blueprint.get("tiptap_schema_blueprint", {}).get("content", [])
+            lines = []
+            for n in nodes:
+                ntype = n.get("type")
+                if ntype == "heading":
+                    lvl = n.get("attrs", {}).get("level", 1)
+                    txt = "".join([c.get("text", "") for c in n.get("content", [])])
+                    lines.append(f"{'#' * lvl} {txt}")
+                elif ntype == "paragraph":
+                    txt = "".join([c.get("text", "") for c in n.get("content", [])])
+                    lines.append(txt)
+                elif ntype == "table":
+                    lines.append("[TABLE FORMAT]")
+            template_text_content = "\n".join(lines) if lines else (
+                "1. Executive Financial Summary\n"
+                "2. Invoicing & Payment Breakdown\n"
+                "3. CRM Pipeline\n"
+                "4. Financial Recommendations"
+            )
+
+        # Assemble prompt system instructions with strict template layout constraints
         system_instruction = (
             "You are an executive corporate report compiler. You MUST generate a clean Tiptap document JSON structure.\n"
-            f"Target Client ID: {client_id}\n"
-            f"Formatting Preference Rules:\n" + "\n".join([f"- {c}" for c in context]) + "\n"
-            f"Original Layout Blueprint:\n{json.dumps(blueprint.get('tiptap_schema_blueprint', {}))}\n\n"
+            f"Target Client ID: {client_id}\n\n"
+            "STRICT LAYOUT CONSTRAINT: You must generate the output adhering strictly to the exact structure, headers, bullet lists, and tables provided in this template layout:\n"
+            "---\n"
+            f"{template_text_content}\n"
+            "---\n"
+            f"Fill in all placeholders (e.g. {{client_id}}, metrics, tables) with live context retrieved for {client_id}.\n\n"
+            f"Formatting Preference Rules:\n" + "\n".join([f"- {c}" for c in context]) + "\n\n"
             "Live Extracted Data context:\n"
             f"- GA4: {json.dumps(ga4_data)}\n"
             f"- QuickBooks: {json.dumps(qb_data)}\n"
             f"- SQLite Projects: {json.dumps(projects)}\n\n"
-            "MANDATORY REPORT STRUCTURE:\n"
-            "1. Title (heading level 1): 'Executive Performance Briefing: [CLIENT]'\n"
-            "2. Executive Summary (heading level 2 + paragraph detailing QoQ metrics and highlights).\n"
-            "3. Quantitative Performance Comparison Table (table node with tableRow, tableHeader, and tableCell nodes):\n"
-            "   Headers: 'Performance Metric', 'Q2 Baseline', 'Q3 Actual', 'Variance / Growth'\n"
-            "   Rows comparing GA4 Sessions, GA4 Pageviews, Outstanding Invoices, and Active Vault Projects.\n"
-            "4. Vault Project Milestones (heading level 2 + bulletList).\n"
-            "5. Strategic Recommendations (heading level 2 + paragraph).\n\n"
+            "MANDATORY REPORT SECTIONS & HTML STYLING:\n"
+            "Ensure the output matches the exact sections:\n"
+            "1. Executive Financial Summary\n"
+            "2. Invoicing & Payment Breakdown (table node with tableRow, tableHeader, and tableCell nodes)\n"
+            "3. CRM Pipeline\n"
+            "4. Financial Recommendations\n\n"
             "Respond ONLY with a valid, clean JSON payload matching the Tiptap structure: "
             "{\"type\": \"doc\", \"content\": [...]}. No markdown wrap, no explanations."
         )
@@ -144,7 +174,7 @@ class LocalToolsManager:
                 {
                     "type": "heading",
                     "attrs": {"level": 1},
-                    "content": [{"type": "text", "text": f"Executive Performance Briefing: {client_id.upper()}"}]
+                    "content": [{"type": "text", "text": f"Executive Financial & Operations Report: {client_id.upper()}"}]
                 },
                 {
                     "type": "paragraph",
@@ -156,20 +186,20 @@ class LocalToolsManager:
                 {
                     "type": "heading",
                     "attrs": {"level": 2},
-                    "content": [{"type": "text", "text": "1. Executive Summary & Key Highlights"}]
+                    "content": [{"type": "text", "text": "1. Executive Financial Summary"}]
                 },
                 {
                     "type": "paragraph",
                     "content": [
                         {"type": "text", "text": "During the current review period, "},
                         {"type": "text", "text": client_id, "marks": [{"type": "bold"}]},
-                        {"type": "text", "text": f" recorded strong digital growth with organic sessions rising to {q3_sessions:,} ({sess_growth} QoQ). Financial operations reflect {qb_count} open QuickBooks invoices totaling ${qb_total:,.2f}. Vault project execution remains on schedule across active initiatives ({proj_summary})."}
+                        {"type": "text", "text": f" recorded strong performance with organic sessions rising to {q3_sessions:,} ({sess_growth} QoQ). Financial operations reflect {qb_count} open QuickBooks invoices totaling ${qb_total:,.2f}. Vault project execution remains on schedule across active initiatives ({proj_summary})."}
                     ]
                 },
                 {
                     "type": "heading",
                     "attrs": {"level": 2},
-                    "content": [{"type": "text", "text": "2. Performance & Financial Metrics Breakdown"}]
+                    "content": [{"type": "text", "text": "2. Invoicing & Payment Breakdown"}]
                 },
                 {
                     "type": "table",
@@ -177,10 +207,19 @@ class LocalToolsManager:
                         {
                             "type": "tableRow",
                             "content": [
-                                {"type": "tableHeader", "content": [cell_para("Performance Metric", True)]},
+                                {"type": "tableHeader", "content": [cell_para("Financial Metric", True)]},
                                 {"type": "tableHeader", "content": [cell_para("Q2 Baseline", True)]},
                                 {"type": "tableHeader", "content": [cell_para("Q3 Actual", True)]},
                                 {"type": "tableHeader", "content": [cell_para("Variance / Growth", True)]}
+                            ]
+                        },
+                        {
+                            "type": "tableRow",
+                            "content": [
+                                {"type": "tableCell", "content": [cell_para("Outstanding Invoices")]},
+                                {"type": "tableCell", "content": [cell_para("$0.00")]},
+                                {"type": "tableCell", "content": [cell_para(f"${qb_total:,.2f}")]},
+                                {"type": "tableCell", "content": [cell_para(f"{qb_count} Pending Invoices", True)]}
                             ]
                         },
                         {
@@ -204,15 +243,6 @@ class LocalToolsManager:
                         {
                             "type": "tableRow",
                             "content": [
-                                {"type": "tableCell", "content": [cell_para("Outstanding Billing")]},
-                                {"type": "tableCell", "content": [cell_para("$0.00")]},
-                                {"type": "tableCell", "content": [cell_para(f"${qb_total:,.2f}")]},
-                                {"type": "tableCell", "content": [cell_para(f"{qb_count} Pending Invoices", True)]}
-                            ]
-                        },
-                        {
-                            "type": "tableRow",
-                            "content": [
                                 {"type": "tableCell", "content": [cell_para("Active Vault Campaigns")]},
                                 {"type": "tableCell", "content": [cell_para("1 Project")]},
                                 {"type": "tableCell", "content": [cell_para(f"{len(projects)} Projects")]},
@@ -224,7 +254,7 @@ class LocalToolsManager:
                 {
                     "type": "heading",
                     "attrs": {"level": 2},
-                    "content": [{"type": "text", "text": "3. Vault Project Milestones"}]
+                    "content": [{"type": "text", "text": "3. CRM Pipeline"}]
                 },
                 {
                     "type": "bulletList",
@@ -248,12 +278,12 @@ class LocalToolsManager:
                 {
                     "type": "heading",
                     "attrs": {"level": 2},
-                    "content": [{"type": "text", "text": "4. Strategic Next Steps"}]
+                    "content": [{"type": "text", "text": "4. Financial Recommendations"}]
                 },
                 {
                     "type": "paragraph",
                     "content": [
-                        {"type": "text", "text": "1. Settle outstanding QuickBooks invoices before upcoming billing cycle.\n2. Scale organic search acquisition strategy based on positive Q3 session growth."}
+                        {"type": "text", "text": "1. Expedite settlement of open QuickBooks invoices prior to month-end.\n2. Reallocate Q4 search acquisition budget based on positive Q3 organic growth trends."}
                     ]
                 }
             ]
