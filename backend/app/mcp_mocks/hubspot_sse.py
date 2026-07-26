@@ -23,18 +23,25 @@ from backend.app.core.exceptions import ValidationError
 HUBSPOT_DATABASE: Dict[str, Dict[str, Any]] = {
     "client_abc": {
         "active_deals": [
-            {"deal_id": "deal_551", "deal_name": "ACME Enterprise Renewal", "amount": 80000.0, "stage": "Closed Won", "owner": "Alice Miller"},
-            {"deal_id": "deal_552", "deal_name": "Q4 Expansion Retainer", "amount": 25000.0, "stage": "Proposal Sent", "owner": "Sarah Connor"}
+            {"deal_id": "deal_551", "deal_name": "Enterprise Retainer Renewal", "amount": 80000.0, "stage": "Closed Won", "owner": "Alice Miller"},
+            {"deal_id": "deal_552", "deal_name": "Custom AI Agent Integration", "amount": 95000.0, "stage": "In Negotiation", "owner": "Sarah Connor"},
+            {"deal_id": "deal_553", "deal_name": "SEO Audit Campaign", "amount": 12000.0, "stage": "Closed Won", "owner": "Alice Miller"},
+            {"deal_id": "deal_554", "deal_name": "Q4 Expansion Retainer", "amount": 25000.0, "stage": "Proposal Sent", "owner": "Sarah Connor"},
+            {"deal_id": "deal_555", "deal_name": "Cloud Infrastructure Optimization", "amount": 48000.0, "stage": "In Negotiation", "owner": "Alice Miller"}
         ],
-        "total_pipeline_value": 105000.0,
+        "total_pipeline_value": 260000.0,
         "lead_stage": "Enterprise Account",
         "account_owner": "Alice Miller"
     },
     "client_xyz": {
         "active_deals": [
-            {"deal_id": "deal_901", "deal_name": "XYZ Platform Setup", "amount": 45000.0, "stage": "Negotiation", "owner": "John Doe"}
+            {"deal_id": "deal_901", "deal_name": "XYZ Platform Setup & Integration", "amount": 45000.0, "stage": "In Negotiation", "owner": "John Doe"},
+            {"deal_id": "deal_902", "deal_name": "Enterprise Retainer Renewal", "amount": 72000.0, "stage": "Closed Won", "owner": "John Doe"},
+            {"deal_id": "deal_903", "deal_name": "Custom AI Agent Integration", "amount": 88000.0, "stage": "Proposal Sent", "owner": "John Doe"},
+            {"deal_id": "deal_904", "deal_name": "SEO Audit Campaign", "amount": 15000.0, "stage": "Closed Won", "owner": "Sarah Connor"},
+            {"deal_id": "deal_905", "deal_name": "Mobile App Modernization", "amount": 34000.0, "stage": "In Negotiation", "owner": "John Doe"}
         ],
-        "total_pipeline_value": 45000.0,
+        "total_pipeline_value": 254000.0,
         "lead_stage": "Opportunity",
         "account_owner": "John Doe"
     }

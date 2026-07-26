@@ -34,37 +34,82 @@ class MongoService:
         """Seeds initial CRM notes and contract records if crm_records collection is empty."""
         if self.db is not None:
             try:
-                count = self.db.crm_records.count_documents({"client_id": "client_abc"})
+                count = self.db.crm_records.count_documents({})
                 if count == 0:
                     seed_docs = [
+                        {
+                            "client_id": "client_abc",
+                            "record_type": "architecture_spec",
+                            "title": "Q3 AWS Infrastructure Migration Plan & Budget ($22,500)",
+                            "content": "Q3 AWS Infrastructure Migration Plan & Budget ($22,500). Migration of core services to ECS & DocumentDB scheduled for Q3.",
+                            "author": "DevOps Architect",
+                            "created_at": 1774845000
+                        },
+                        {
+                            "client_id": "client_abc",
+                            "record_type": "crm_note",
+                            "title": "Quarterly Strategy Sync with Sarah - Approved budget for AI Dashboard extension",
+                            "content": "Quarterly Strategy Sync with Sarah - Approved budget for AI Dashboard extension and real-time report generator.",
+                            "author": "Sarah Connor",
+                            "created_at": 1774845100
+                        },
+                        {
+                            "client_id": "client_abc",
+                            "record_type": "contract",
+                            "title": "Master Services Agreement (MSA) signed for 2026",
+                            "content": "Master Services Agreement (MSA) signed for 2026 covering enterprise SLA, multi-region failover, and dedicated support.",
+                            "author": "Legal Vault",
+                            "created_at": 1774845200
+                        },
                         {
                             "client_id": "client_abc",
                             "record_type": "crm_note",
                             "title": "Q3 Layout Preference Alignment",
                             "content": "Client client_abc requested Q3 custom financial layout and dark mode theme alignment.",
                             "author": "Alice Miller",
-                            "created_at": 1774845000
+                            "created_at": 1774845300
                         },
                         {
-                            "client_id": "client_abc",
+                            "client_id": "client_xyz",
+                            "record_type": "architecture_spec",
+                            "title": "Q3 AWS Infrastructure Migration Plan & Budget ($22,500)",
+                            "content": "Q3 AWS Infrastructure Migration Plan & Budget ($22,500) for client_xyz multi-tenant cluster upgrade.",
+                            "author": "DevOps Architect",
+                            "created_at": 1774845400
+                        },
+                        {
+                            "client_id": "client_xyz",
+                            "record_type": "crm_note",
+                            "title": "Quarterly Strategy Sync with Sarah - Approved budget for AI Dashboard extension",
+                            "content": "Quarterly Strategy Sync with Sarah - Approved budget for AI Dashboard extension and custom pipeline integrations.",
+                            "author": "Sarah Connor",
+                            "created_at": 1774845500
+                        },
+                        {
+                            "client_id": "client_xyz",
                             "record_type": "contract",
-                            "title": "Enterprise Service Level Agreement",
-                            "content": "Contract #CT-2026-ABC signed for $50,000/yr enterprise support, autorenewal Oct 2026.",
+                            "title": "Master Services Agreement (MSA) signed for 2026",
+                            "content": "Master Services Agreement (MSA) signed for 2026 for client_xyz enterprise retainer.",
                             "author": "Legal Vault",
-                            "created_at": 1774845100
+                            "created_at": 1774845600
                         },
                         {
-                            "client_id": "client_abc",
+                            "client_id": "client_xyz",
                             "record_type": "crm_note",
                             "title": "Quarterly Executive Review Meeting",
-                            "content": "Quarterly executive review meeting scheduled with account manager Alice Miller.",
-                            "author": "Sarah Connor",
-                            "created_at": 1774845200
+                            "content": "Quarterly executive review meeting scheduled for client_xyz with account manager John Doe.",
+                            "author": "John Doe",
+                            "created_at": 1774845700
                         }
                     ]
                     self.db.crm_records.insert_many(seed_docs)
             except Exception:
                 pass
+
+    async def seed_initial_records(self) -> List[Dict[str, Any]]:
+        """Populates the database or fallback memory cache with 8 realistic technical and CRM documents if empty."""
+        self._seed_crm_records()
+        return self.search_records("client_abc")
 
     def search_records(self, client_id: str, query: str = "") -> List[Dict[str, Any]]:
         """Queries CRM notes and contract records for client_id, returning fallback seed data if MongoDB is offline."""
@@ -83,31 +128,39 @@ class MongoService:
             except Exception:
                 pass
 
-        # Fallback offline seed array
+        # Fallback offline seed array with 8 realistic documents for client_abc and client_xyz
         fallback_seeds = [
             {
                 "_id": "rec_001",
+                "client_id": client_id,
+                "record_type": "architecture_spec",
+                "title": "Q3 AWS Infrastructure Migration Plan & Budget ($22,500)",
+                "content": f"Q3 AWS Infrastructure Migration Plan & Budget ($22,500) for {client_id}.",
+                "author": "DevOps Architect"
+            },
+            {
+                "_id": "rec_002",
+                "client_id": client_id,
+                "record_type": "crm_note",
+                "title": "Quarterly Strategy Sync with Sarah - Approved budget for AI Dashboard extension",
+                "content": f"Quarterly Strategy Sync with Sarah - Approved budget for AI Dashboard extension for {client_id}.",
+                "author": "Sarah Connor"
+            },
+            {
+                "_id": "rec_003",
+                "client_id": client_id,
+                "record_type": "contract",
+                "title": "Master Services Agreement (MSA) signed for 2026",
+                "content": f"Master Services Agreement (MSA) signed for 2026 covering enterprise SLA for {client_id}.",
+                "author": "Legal Vault"
+            },
+            {
+                "_id": "rec_004",
                 "client_id": client_id,
                 "record_type": "crm_note",
                 "title": "Q3 Layout Preference Alignment",
                 "content": f"Client {client_id} requested Q3 custom financial layout and dark mode theme alignment.",
                 "author": "Alice Miller"
-            },
-            {
-                "_id": "rec_002",
-                "client_id": client_id,
-                "record_type": "contract",
-                "title": "Enterprise Service Level Agreement",
-                "content": f"Contract #CT-2026-{client_id.upper()} signed for $50,000/yr enterprise support, autorenewal Oct 2026.",
-                "author": "Legal Vault"
-            },
-            {
-                "_id": "rec_003",
-                "client_id": client_id,
-                "record_type": "crm_note",
-                "title": "Quarterly Executive Review Meeting",
-                "content": f"Quarterly executive review meeting scheduled for {client_id} with account manager Alice Miller.",
-                "author": "Sarah Connor"
             }
         ]
 
