@@ -12,6 +12,8 @@ db_service = SQLiteService()
 
 class LocalToolsManager:
     def __init__(self):
+        self.sqlite_service = db_service
+        self.db_service = db_service
         # Configure Gemini API connection
         if settings.gemini_api_key:
             genai.configure(api_key=settings.gemini_api_key)

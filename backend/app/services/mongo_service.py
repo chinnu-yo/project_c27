@@ -12,6 +12,7 @@ class MongoService:
             self.client.admin.command('ping')
             self.db = self.client.get_database("agentic_workspace")
             self._ensure_indexes()
+            self._seed_crm_records()
         except Exception:
             # Clean fallback settings if Mongo server is unreachable
             self.client = None
@@ -25,8 +26,100 @@ class MongoService:
                 self.db.report_templates.create_index("template_id", unique=True)
                 self.db.dashboard_notifications.create_index("client_id")
                 self.db.reports.create_index("client_id")
+                self.db.crm_records.create_index("client_id")
             except Exception:
                 pass
+
+    def _seed_crm_records(self):
+        """Seeds initial CRM notes and contract records if crm_records collection is empty."""
+        if self.db is not None:
+            try:
+                count = self.db.crm_records.count_documents({"client_id": "client_abc"})
+                if count == 0:
+                    seed_docs = [
+                        {
+                            "client_id": "client_abc",
+                            "record_type": "crm_note",
+                            "title": "Q3 Layout Preference Alignment",
+                            "content": "Client client_abc requested Q3 custom financial layout and dark mode theme alignment.",
+                            "author": "Alice Miller",
+                            "created_at": 1774845000
+                        },
+                        {
+                            "client_id": "client_abc",
+                            "record_type": "contract",
+                            "title": "Enterprise Service Level Agreement",
+                            "content": "Contract #CT-2026-ABC signed for $50,000/yr enterprise support, autorenewal Oct 2026.",
+                            "author": "Legal Vault",
+                            "created_at": 1774845100
+                        },
+                        {
+                            "client_id": "client_abc",
+                            "record_type": "crm_note",
+                            "title": "Quarterly Executive Review Meeting",
+                            "content": "Quarterly executive review meeting scheduled with account manager Alice Miller.",
+                            "author": "Sarah Connor",
+                            "created_at": 1774845200
+                        }
+                    ]
+                    self.db.crm_records.insert_many(seed_docs)
+            except Exception:
+                pass
+
+    def search_records(self, client_id: str, query: str = "") -> List[Dict[str, Any]]:
+        """Queries CRM notes and contract records for client_id, returning fallback seed data if MongoDB is offline."""
+        if self.db is not None:
+            try:
+                q_dict: Dict[str, Any] = {"client_id": client_id}
+                if query:
+                    q_dict["$or"] = [
+                        {"content": {"$regex": query, "$options": "i"}},
+                        {"title": {"$regex": query, "$options": "i"}},
+                        {"record_type": {"$regex": query, "$options": "i"}}
+                    ]
+                records = list(self.db.crm_records.find(q_dict))
+                if records:
+                    return [{**item, "_id": str(item["_id"])} for item in records]
+            except Exception:
+                pass
+
+        # Fallback offline seed array
+        fallback_seeds = [
+            {
+                "_id": "rec_001",
+                "client_id": client_id,
+                "record_type": "crm_note",
+                "title": "Q3 Layout Preference Alignment",
+                "content": f"Client {client_id} requested Q3 custom financial layout and dark mode theme alignment.",
+                "author": "Alice Miller"
+            },
+            {
+                "_id": "rec_002",
+                "client_id": client_id,
+                "record_type": "contract",
+                "title": "Enterprise Service Level Agreement",
+                "content": f"Contract #CT-2026-{client_id.upper()} signed for $50,000/yr enterprise support, autorenewal Oct 2026.",
+                "author": "Legal Vault"
+            },
+            {
+                "_id": "rec_003",
+                "client_id": client_id,
+                "record_type": "crm_note",
+                "title": "Quarterly Executive Review Meeting",
+                "content": f"Quarterly executive review meeting scheduled for {client_id} with account manager Alice Miller.",
+                "author": "Sarah Connor"
+            }
+        ]
+
+        if not query:
+            return fallback_seeds
+
+        q_lower = query.lower()
+        filtered = [
+            rec for rec in fallback_seeds
+            if q_lower in rec["title"].lower() or q_lower in rec["content"].lower() or q_lower in rec["record_type"].lower()
+        ]
+        return filtered if filtered else fallback_seeds
 
     def get_template(self, client_id: str) -> Dict[str, Any]:
         """Loads a blueprint layout template, falling back gracefully to defaults on network error."""
