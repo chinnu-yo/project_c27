@@ -5,9 +5,11 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useWorkspaceStore } from '../store';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { clientId, clearSession } = useWorkspaceStore();
+  const { clientId, userRole, clearSession } = useWorkspaceStore();
   const router = useRouter();
   const pathname = usePathname();
+
+  const isAdmin = userRole === 'Admin';
 
   const handleLogout = () => {
     clearSession();
@@ -19,8 +21,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Memory Approval Feed', href: '/dashboard/memory' },
     { name: 'Document Templates', href: '/dashboard/templates' },
     { name: 'Workspace Canvas', href: `/dashboard/workspace/${clientId}` },
-    { name: 'Integrations Settings', href: '/dashboard/settings' },
-    { name: 'Team & Access', href: '/dashboard/team' }
+    ...(isAdmin ? [
+      { name: 'Integrations Settings', href: '/dashboard/settings' },
+      { name: 'Team & Access', href: '/dashboard/team' }
+    ] : [])
   ];
 
   return (
@@ -55,6 +59,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="glass-card" style={{ padding: '16px', borderRadius: '12px' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Tenant</div>
           <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-teal)', marginTop: '4px' }}>{clientId}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px' }}>
+            Role: <span style={{ color: isAdmin ? '#c084fc' : '#93c5fd', fontWeight: 600 }}>{userRole || 'Member'}</span>
+          </div>
         </div>
 
         {/* Nav Links */}

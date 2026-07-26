@@ -16,15 +16,18 @@ interface TeamMember {
 const AVAILABLE_CLIENTS = ['client_abc', 'client_xyz'];
 
 export default function TeamPage() {
-  const { clientId } = useWorkspaceStore();
+  const { clientId, userRole } = useWorkspaceStore();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const isAdmin = userRole === 'Admin';
+
   // Invite modal state
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
   const [inviteRole, setInviteRole] = useState<'Admin' | 'Member'>('Member');
   const [inviteClients, setInviteClients] = useState<string[]>([clientId || 'client_abc']);
   const [inviting, setInviting] = useState(false);
@@ -56,6 +59,10 @@ export default function TeamPage() {
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      setError('Access Restricted: Admin privileges required to invite team members.');
+      return;
+    }
     if (!inviteEmail) {
       setError('Please enter a valid email address.');
       return;
@@ -68,14 +75,16 @@ export default function TeamPage() {
         method: 'POST',
         body: JSON.stringify({
           email: inviteEmail,
+          password: invitePassword || 'password123',
           role: inviteRole,
           client_access: inviteClients
         })
       });
 
-      setSuccess(`Pending invite created for ${inviteEmail}`);
+      setSuccess(`Account created for ${inviteEmail}`);
       setShowInviteModal(false);
       setInviteEmail('');
+      setInvitePassword('');
       setInviteRole('Member');
       setInviteClients([clientId || 'client_abc']);
       await fetchTeamMembers();
@@ -87,6 +96,10 @@ export default function TeamPage() {
   };
 
   const handleStartEdit = (member: TeamMember) => {
+    if (!isAdmin) {
+      setError('Access Restricted: Admin privileges required to edit team member permissions.');
+      return;
+    }
     setEditingMember(member);
     setEditRole(member.role);
     setEditClients(member.client_access || []);
@@ -94,7 +107,7 @@ export default function TeamPage() {
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingMember) return;
+    if (!editingMember || !isAdmin) return;
 
     try {
       setUpdating(true);
@@ -118,6 +131,10 @@ export default function TeamPage() {
   };
 
   const handleRemove = async (memberId: string, email: string) => {
+    if (!isAdmin) {
+      setError('Access Restricted: Admin privileges required to remove team members.');
+      return;
+    }
     if (!confirm(`Are you sure you want to remove team member ${email}?`)) return;
     try {
       setError(null);
@@ -152,12 +169,21 @@ export default function TeamPage() {
 
         <button
           onClick={() => setShowInviteModal(true)}
+          disabled={!isAdmin}
           className="btn-primary"
-          style={{ padding: '12px 20px', borderRadius: '8px', fontWeight: 600 }}
+          style={{ padding: '12px 20px', borderRadius: '8px', fontWeight: 600, opacity: isAdmin ? 1 : 0.5, cursor: isAdmin ? 'pointer' : 'not-allowed' }}
         >
           + Invite Team Member
         </button>
       </div>
+
+      {!isAdmin && (
+        <div className="glass-card" style={{ padding: '16px 20px', borderRadius: '12px', borderLeft: '4px solid #eab308', backgroundColor: 'rgba(234, 179, 8, 0.1)' }}>
+          <span style={{ color: '#fde047', fontSize: '14px', fontWeight: 600 }}>
+            🔒 Access Restricted: You are currently logged in with a Member role. Only workspace Administrators can invite members or modify permissions.
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className="glass-card" style={{ padding: '16px', borderRadius: '12px', borderLeft: '4px solid #ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)' }}>
@@ -302,13 +328,28 @@ export default function TeamPage() {
             <form onSubmit={handleInvite} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
-                  Email Address
+                  Username / Email Address
                 </label>
                 <input
-                  type="email"
-                  placeholder="colleague@company.com"
+                  type="text"
+                  placeholder="user@company.com"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
+                  className="glass-input"
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: '8px' }}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
+                  Initial Account Password
+                </label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={invitePassword}
+                  onChange={(e) => setInvitePassword(e.target.value)}
                   className="glass-input"
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '8px' }}
                   required

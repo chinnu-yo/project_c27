@@ -36,11 +36,14 @@ class LocalToolsManager:
     async def execute_in_app_loop(self, user_prompt: str, context: List[str], blueprint: Dict[str, Any]) -> dict:
         """Runs the Gemini structured compilation loop incorporating tool and blueprint contexts."""
         client_id = blueprint.get("client_id", "client_abc")
-        if not settings.gemini_api_key:
-            # Sandbox fallback payload if GEMINI_API_KEY is not defined
+        from backend.app.core.config import settings, get_effective_tenant_key
+        effective_gemini_key = get_effective_tenant_key(client_id, "Gemini", self.sqlite_service)
+
+        if not effective_gemini_key:
+            # Sandbox fallback payload if no Gemini API Key is available
             return self._get_fallback_tiptap(user_prompt, client_id)
 
-        genai.configure(api_key=settings.gemini_api_key)
+        genai.configure(api_key=effective_gemini_key)
         
         # Step 1: Pre-fetch metrics data locally to feed variables straight to LLM context pool
         ga4_data = get_ga4_metrics(client_id)

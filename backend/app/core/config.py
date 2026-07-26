@@ -36,6 +36,10 @@ class Settings(BaseModel):
         default="",
         alias="ENCRYPTION_KEY"
     )
+    hubspot_token: str = Field(
+        default="",
+        alias="HUBSPOT_TOKEN"
+    )
 
     class Config:
         populate_by_name = True
@@ -43,6 +47,7 @@ class Settings(BaseModel):
 _env = os.getenv("ENV", "development").lower()
 _jwt_secret = os.getenv("JWT_SECRET", "placeholder_secret_key")
 _encryption_key = os.getenv("ENCRYPTION_KEY", "")
+_hubspot_token = os.getenv("HUBSPOT_TOKEN", "")
 
 if _env == "production":
     if not _jwt_secret or _jwt_secret == "placeholder_secret_key":
@@ -63,6 +68,26 @@ settings = Settings(
     PORT=int(os.getenv("PORT", "8000")),
     ENV=_env,
     JWT_SECRET=_jwt_secret,
-    ENCRYPTION_KEY=_encryption_key
+    ENCRYPTION_KEY=_encryption_key,
+    HUBSPOT_TOKEN=_hubspot_token
 )
+
+def get_effective_tenant_key(client_id: str, provider_keyword: str, sqlite_service=None) -> Optional[str]:
+    """Retrieves decrypted integration credential for a specific client tenant and provider, falling back to env setting."""
+    if sqlite_service and client_id:
+        try:
+            cred = sqlite_service.get_tenant_credential(client_id, provider_keyword)
+            if cred:
+                return cred
+        except Exception:
+            pass
+
+    provider_keyword_lower = provider_keyword.lower()
+    if "gemini" in provider_keyword_lower:
+        return settings.gemini_api_key
+    elif "mongo" in provider_keyword_lower:
+        return settings.mongodb_uri
+    elif "hubspot" in provider_keyword_lower:
+        return settings.hubspot_token
+    return None
 

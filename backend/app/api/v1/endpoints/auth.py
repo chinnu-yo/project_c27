@@ -13,7 +13,7 @@ async def login(
     payload: LoginRequestModel,
     sqlite: SQLiteService = Depends(get_sqlite_service)
 ):
-    """Authenticates client credentials against SQLite and issues a signed JWT token."""
+    """Authenticates client credentials against SQLite and issues a signed JWT token with role claims."""
     if not payload.client_id or not payload.password:
         raise SecurityError("Invalid client credentials")
 
@@ -25,9 +25,24 @@ async def login(
     if not stored_hash or not verify_password(payload.password, stored_hash):
         raise SecurityError("Invalid client credentials")
 
-    token = create_access_token(client_id=payload.client_id)
+    # Determine role claim from request payload or default to Admin
+    role = payload.user_role if payload.user_role else "Admin"
+    if role.lower() in ["admin", "admin / manager"]:
+        assigned_role = "Admin"
+    else:
+        assigned_role = "Member"
+
+    assigned_tenants = ["client_abc", "client_xyz"]
+
+    token = create_access_token(
+        client_id=payload.client_id,
+        user_role=assigned_role,
+        assigned_tenants=assigned_tenants
+    )
     return LoginResponseModel(
         access_token=token,
         token_type="bearer",
-        client_id=payload.client_id
+        client_id=payload.client_id,
+        user_role=assigned_role,
+        assigned_tenants=assigned_tenants
     )

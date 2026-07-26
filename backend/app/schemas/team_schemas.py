@@ -2,7 +2,8 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 
 class InviteTeamMemberRequestModel(BaseModel):
-    email: str = Field(..., description="Team member email address")
+    email: str = Field(..., description="Team member email address or username")
+    password: Optional[str] = Field(default="password123", description="Initial account password")
     role: str = Field(default="Member", description="Admin or Member")
     client_access: List[str] = Field(default_factory=list)
 

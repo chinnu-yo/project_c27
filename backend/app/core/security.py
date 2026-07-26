@@ -31,12 +31,22 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(client_id: str, expires_in_seconds: int = 86400) -> str:
-    """Creates a signed JWT with client_id embedded as a claim and expiration."""
+def create_access_token(
+    client_id: str,
+    user_role: str = "Admin",
+    assigned_tenants: list = None,
+    expires_in_seconds: int = 86400
+) -> str:
+    """Creates a signed JWT with client_id, user_role, and assigned_tenants embedded as claims."""
     now = int(time.time())
+    if assigned_tenants is None:
+        assigned_tenants = ["client_abc", "client_xyz"]
     payload = {
         "sub": client_id,
         "client_id": client_id,
+        "role": user_role,
+        "user_role": user_role,
+        "assigned_tenants": assigned_tenants,
         "iat": now,
         "exp": now + expires_in_seconds
     }

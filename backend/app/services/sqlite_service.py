@@ -196,17 +196,37 @@ class SQLiteService:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
+            # Check if integration with matching name exists for client
             cursor.execute(
-                """
-                INSERT INTO client_integrations 
-                (id, client_id, integration_name, integration_type, endpoint_url, encrypted_credential, created_at, last_tested_at, last_test_status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'Not Configured')
-                """,
-                (integration_id, client_id, integration_name, integration_type, endpoint_url, encrypted_credential, created_at)
+                "SELECT id FROM client_integrations WHERE client_id = ? AND LOWER(integration_name) = LOWER(?)",
+                (client_id, integration_name)
             )
-            conn.commit()
-            conn.close()
-            return self.get_integration_by_id(integration_id, client_id)
+            existing = cursor.fetchone()
+            if existing:
+                target_id = existing[0]
+                cursor.execute(
+                    """
+                    UPDATE client_integrations
+                    SET integration_type = ?, endpoint_url = ?, encrypted_credential = ?, created_at = ?, last_test_status = 'Connected'
+                    WHERE id = ? AND client_id = ?
+                    """,
+                    (integration_type, endpoint_url, encrypted_credential, created_at, target_id, client_id)
+                )
+                conn.commit()
+                conn.close()
+                return self.get_integration_by_id(target_id, client_id)
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO client_integrations 
+                    (id, client_id, integration_name, integration_type, endpoint_url, encrypted_credential, created_at, last_tested_at, last_test_status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'Connected')
+                    """,
+                    (integration_id, client_id, integration_name, integration_type, endpoint_url, encrypted_credential, created_at)
+                )
+                conn.commit()
+                conn.close()
+                return self.get_integration_by_id(integration_id, client_id)
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to create client integration: {str(e)}")
 
@@ -236,9 +256,22 @@ class SQLiteService:
             )
             row = cursor.fetchone()
             conn.close()
-            return dict(row) if row else None
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to fetch integration record: {str(e)}")
+
+    def get_tenant_credential(self, client_id: str, provider_keyword: str) -> Optional[str]:
+        """Retrieves and decrypts stored credential for a client_id and provider_keyword."""
+        try:
+            from backend.app.api.v1.endpoints.integrations import decrypt_credential
+            integrations = self.get_integrations(client_id)
+            for item in integrations:
+                if provider_keyword.lower() in item.get("integration_name", "").lower():
+                    encrypted = item.get("encrypted_credential")
+                    if encrypted:
+                        return decrypt_credential(encrypted)
+        except Exception:
+            pass
+        return None
 
     def update_integration_test_status(self, integration_id: str, client_id: str, status: str, tested_at: int) -> bool:
         try:

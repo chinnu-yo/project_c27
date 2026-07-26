@@ -9,12 +9,14 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [clientField, setClientField] = useState('client_abc');
+  const [userRoleField, setUserRoleField] = useState('Admin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const router = useRouter();
   const setClientId = useWorkspaceStore((state) => state.setClientId);
   const setJwtToken = useWorkspaceStore((state) => state.setJwtToken);
+  const setUserRole = useWorkspaceStore((state) => state.setUserRole);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,17 +24,20 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const data = await apiRequest<{ access_token: string; token_type: string; client_id: string }>('/auth/login', {
+      const data = await apiRequest<{ access_token: string; token_type: string; client_id: string; user_role?: string }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({
           client_id: clientField,
-          password: password
+          password: password,
+          user_role: userRoleField
         })
       });
 
       if (data && data.access_token) {
+        const role = data.user_role || userRoleField;
         setClientId(data.client_id || clientField);
         setJwtToken(data.access_token);
+        setUserRole(role);
         router.push('/dashboard');
       } else {
         setError('Invalid credentials.');
@@ -52,7 +57,7 @@ export default function LoginPage() {
       minHeight: '100vh',
       background: 'radial-gradient(circle at top right, hsl(262, 40%, 12%), var(--bg-obsidian))'
     }}>
-      <div className="glass-card" style={{ width: '100%', maxWidth: '400px' }}>
+      <div className="glass-card" style={{ width: '100%', maxWidth: '420px' }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <h2 style={{
             fontSize: '28px',
@@ -96,6 +101,21 @@ export default function LoginPage() {
             >
               <option value="client_abc" style={{ backgroundColor: 'var(--bg-obsidian)' }}>client_abc (Boutique Agency)</option>
               <option value="client_xyz" style={{ backgroundColor: 'var(--bg-obsidian)' }}>client_xyz (Consultancy Group)</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+              Role / Account Type
+            </label>
+            <select
+              value={userRoleField}
+              onChange={(e) => setUserRoleField(e.target.value)}
+              className="glass-input"
+              style={{ width: '100%' }}
+            >
+              <option value="Admin" style={{ backgroundColor: 'var(--bg-obsidian)' }}>Admin / Manager</option>
+              <option value="Member" style={{ backgroundColor: 'var(--bg-obsidian)' }}>Team Member / Viewer</option>
             </select>
           </div>
 

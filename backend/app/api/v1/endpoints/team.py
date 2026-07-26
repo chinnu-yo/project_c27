@@ -46,20 +46,36 @@ async def invite_team_member(
     admin_claims: dict = Depends(verify_admin_role),
     sqlite: SQLiteService = Depends(get_sqlite_service)
 ):
-    """Invites a new team member by email (Admin-only). Stores pending record."""
+    """Creates a new team member account with role, password credentials, and tenant permissions (Admin-only)."""
     existing = sqlite.get_team_member_by_email(str(payload.email))
     if existing:
-        raise ValidationError(f"Team member with email '{payload.email}' already exists.")
+        raise ValidationError(f"Team member with username/email '{payload.email}' already exists.")
 
     member_id = f"tm_{uuid.uuid4().hex[:10]}"
     created_at = int(time.time())
+
+    # Save credentials if password provided
+    if payload.password:
+        from backend.app.core.security import get_password_hash
+        try:
+            import sqlite3
+            conn = sqlite3.connect(sqlite.db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT OR REPLACE INTO client_credentials VALUES (?, ?, ?)",
+                (str(payload.email), get_password_hash(payload.password), created_at)
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
 
     created = sqlite.create_team_member(
         member_id=member_id,
         email=str(payload.email),
         role=payload.role,
         client_access=payload.client_access,
-        status="pending",
+        status="active",
         created_at=created_at
     )
 

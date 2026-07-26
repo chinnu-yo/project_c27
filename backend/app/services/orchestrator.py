@@ -2,7 +2,7 @@ import json
 from typing import Optional
 import google.generativeai as genai
 from fastapi import BackgroundTasks
-from backend.app.core.config import settings
+from backend.app.core.config import settings, get_effective_tenant_key
 from backend.app.services.chroma_service import ChromaMemoryLayer
 from backend.app.services.mongo_service import MongoService
 from backend.app.services.local_tools import LocalToolsManager, get_ga4_metrics, get_quickbooks_data
@@ -29,7 +29,11 @@ class OrchestrationEngine:
         background_tasks: BackgroundTasks,
         template_id: Optional[str] = None
     ) -> dict:
-        """Coordinates retrieval of constraints, calls generation suite, and triggers background Critic review."""
+        """Coordinates retrieval of constraints, calls generation suite with tenant API key overrides, and triggers background Critic review."""
+        # Dynamic API key overrides for Gemini, Mongo, HubSpot
+        effective_gemini_key = get_effective_tenant_key(client_id, "Gemini", self.tools.sqlite_service)
+        if effective_gemini_key:
+            genai.configure(api_key=effective_gemini_key)
         
         # Step 1: Query local vector space for semantic formatting rules
         historical_context = await self.chroma.retrieve_client_facts(
@@ -77,6 +81,10 @@ class OrchestrationEngine:
         query: str
     ) -> dict:
         """Queries MongoDB, HubSpot, GA4, QuickBooks, and SQLite DB concurrently, synthesizing unified search responses."""
+        effective_gemini_key = get_effective_tenant_key(client_id, "Gemini", self.tools.sqlite_service)
+        effective_mongo_uri = get_effective_tenant_key(client_id, "MongoDB", self.tools.sqlite_service)
+        effective_hubspot_token = get_effective_tenant_key(client_id, "HubSpot", self.tools.sqlite_service)
+
         data_pool = {}
         sources = []
 
@@ -117,9 +125,9 @@ class OrchestrationEngine:
             data_pool["hubspot"] = get_hubspot_data(client_id)
             sources = ["ga4", "quickbooks", "database", "mongodb", "hubspot"]
 
-        # Synthesize with Gemini LLM if key is available
-        if settings.gemini_api_key:
-            genai.configure(api_key=settings.gemini_api_key)
+        # Synthesize with Gemini LLM using dynamic effective tenant key if available
+        if effective_gemini_key:
+            genai.configure(api_key=effective_gemini_key)
             prompt = (
                 "You are an operations summary assistant. "
                 f"Synthesize a clear, short plain text answer specifically answering the user query: '{query}'.\n"

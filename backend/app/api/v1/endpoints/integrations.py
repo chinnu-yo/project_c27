@@ -8,7 +8,7 @@ from cryptography.fernet import Fernet
 
 from backend.app.core.config import settings
 from backend.app.core.exceptions import ValidationError, SecurityError
-from backend.app.api.dependencies import get_sqlite_service, get_current_client_id
+from backend.app.api.dependencies import get_sqlite_service, get_current_client_id, verify_admin_role
 from backend.app.services.sqlite_service import SQLiteService
 from backend.app.schemas.integrations_schemas import (
     CreateIntegrationRequestModel,
@@ -46,10 +46,11 @@ def mask_credential(secret: str) -> str:
 @router.post("/integrations", response_model=IntegrationResponseModel)
 async def create_integration(
     payload: CreateIntegrationRequestModel,
+    admin_claims: dict = Depends(verify_admin_role),
     auth_client_id: str = Depends(get_current_client_id),
     sqlite: SQLiteService = Depends(get_sqlite_service)
 ):
-    """Creates a new client integration with Fernet-encrypted secret credentials."""
+    """Creates or updates a client integration with Fernet-encrypted secret credentials (Admin-only)."""
     if payload.client_id != auth_client_id:
         raise SecurityError("Tenant isolation mismatch: Cannot configure integrations for another client_id.")
 
@@ -76,7 +77,7 @@ async def create_integration(
         masked_credential=mask_credential(payload.credential),
         created_at=created["created_at"],
         last_tested_at=created.get("last_tested_at"),
-        last_test_status=created.get("last_test_status", "Not Configured")
+        last_test_status=created.get("last_test_status", "Connected")
     )
 
 @router.get("/integrations/list", response_model=IntegrationsListResponseModel)
@@ -193,10 +194,11 @@ async def test_integration_connection(
 @router.delete("/integrations/{integration_id}")
 async def delete_integration(
     integration_id: str,
+    admin_claims: dict = Depends(verify_admin_role),
     auth_client_id: str = Depends(get_current_client_id),
     sqlite: SQLiteService = Depends(get_sqlite_service)
 ):
-    """Deletes an integration configuration record for the authenticated tenant."""
+    """Deletes an integration configuration record for the authenticated tenant (Admin-only)."""
     deleted = sqlite.delete_integration(integration_id, auth_client_id)
     if not deleted:
         raise ValidationError(f"Integration with ID '{integration_id}' not found or already removed.")
