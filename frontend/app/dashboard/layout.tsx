@@ -18,7 +18,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Dashboard Hub', href: '/dashboard' },
     { name: 'Memory Approval Feed', href: '/dashboard/memory' },
     { name: 'Document Templates', href: '/dashboard/templates' },
-    { name: 'Workspace Canvas', href: `/dashboard/workspace/${clientId}` }
+    { name: 'Workspace Canvas', href: `/dashboard/workspace/${clientId}` },
+    { name: 'Integrations Settings', href: '/dashboard/settings' },
+    { name: 'Team & Access', href: '/dashboard/team' }
   ];
 
   return (

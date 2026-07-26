@@ -42,6 +42,10 @@ def get_sqlite_service() -> SQLiteService:
     return sqlite_db
 
 
+def get_critic_service() -> CriticService:
+    return critic_mgr
+
+
 def get_current_client_id(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
 ) -> str:
@@ -60,3 +64,31 @@ def get_current_client_id(
         if isinstance(e, SecurityError):
             raise e
         raise SecurityError(f"Invalid or expired authentication token: {str(e)}")
+
+
+def verify_admin_role(
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
+) -> dict:
+    """FastAPI dependency for verifying caller has Admin role permissions."""
+    if not credentials or not credentials.credentials:
+        raise SecurityError("Authentication required: Missing token")
+
+    token = credentials.credentials
+    try:
+        payload = decode_access_token(token)
+        # Check role claim directly or allow default tenant admin
+        role = payload.get("role", "Admin")  # Default to Admin for tenant tokens
+        user_email = payload.get("email")
+        if user_email:
+            member = sqlite_db.get_team_member_by_email(user_email)
+            if member:
+                role = member.get("role", role)
+        
+        if role != "Admin":
+            raise SecurityError("Forbidden: Admin permissions required for this operation.")
+        return payload
+    except Exception as e:
+        if isinstance(e, SecurityError):
+            raise e
+        raise SecurityError(f"Authorization error: {str(e)}")
+

@@ -8,11 +8,12 @@ class ChromaMemoryLayer:
         # Setup persistent offline ChromaDB storage
         self.client = chromadb.PersistentClient(path=persist_path)
         
-        # Setup native local embedding function (SentenceTransformers all-MiniLM-L6-v2)
-        # Bypasses network requests & OpenAI API keys, utilizing CPU compute locally (384 dimensions)
-        self.emb_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2"
-        )
+        try:
+            self.emb_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name="all-MiniLM-L6-v2"
+            )
+        except Exception:
+            self.emb_fn = embedding_functions.DefaultEmbeddingFunction()
         
         # Get or create contextual memory collection using cosine distance metric
         self.collection = self.client.get_or_create_collection(
