@@ -1,11 +1,58 @@
 import json
-from typing import Dict, Any, List
+import logging
+import time
+from typing import Dict, Any, List, Optional
 import google.generativeai as genai
 from backend.app.core.config import settings
-from backend.app.core.exceptions import ValidationError
+from backend.app.core.exceptions import ValidationError, SecurityError, NotFoundError, AppException
 from backend.app.mcp_mocks.ga4_mock import get_ga4_metrics
 from backend.app.mcp_mocks.quickbooks_mock import get_quickbooks_data
 from backend.app.services.sqlite_service import SQLiteService
+
+logger = logging.getLogger(__name__)
+
+FALLBACK_CANDIDATE_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite"]
+_cached_models: List[str] = []
+_cached_models_timestamp: float = 0.0
+MODEL_CACHE_TTL = 300.0  # 5 minutes
+
+def get_candidate_models(api_key: Optional[str] = None) -> List[str]:
+    """Dynamically fetches models supporting generateContent from genai.list_models(), cached for 5 minutes."""
+    global _cached_models, _cached_models_timestamp
+    now = time.time()
+    if _cached_models and (now - _cached_models_timestamp) < MODEL_CACHE_TTL:
+        return _cached_models
+
+    try:
+        if api_key:
+            genai.configure(api_key=api_key)
+        
+        discovered_models: List[str] = []
+        for m in genai.list_models():
+            methods = getattr(m, "supported_generation_methods", []) or []
+            if "generateContent" in methods or "generate_content" in methods:
+                name = m.name.replace("models/", "")
+                discovered_models.append(name)
+
+        if discovered_models:
+            preferred = [m for m in FALLBACK_CANDIDATE_MODELS if m in discovered_models]
+            others = [m for m in discovered_models if m not in preferred]
+            _cached_models = preferred + others
+            _cached_models_timestamp = now
+            logger.info(f"Dynamically loaded Gemini candidate models: {_cached_models}")
+            return _cached_models
+        else:
+            logger.warning(
+                f"genai.list_models() returned no models supporting generateContent. "
+                f"Falling back to default candidate models: {FALLBACK_CANDIDATE_MODELS}"
+            )
+    except Exception as e:
+        logger.warning(
+            f"Failed to dynamically fetch Gemini models via genai.list_models(): {e}. "
+            f"Falling back to default candidate models: {FALLBACK_CANDIDATE_MODELS}"
+        )
+
+    return FALLBACK_CANDIDATE_MODELS
 
 # Initialize SQLite database service
 db_service = SQLiteService()
@@ -36,8 +83,6 @@ class LocalToolsManager:
     async def execute_in_app_loop(self, user_prompt: str, context: List[str], blueprint: Dict[str, Any]) -> dict:
         """Runs the Gemini structured compilation loop incorporating tool and blueprint contexts with strict key enforcement."""
         client_id = blueprint.get("client_id", "client_abc")
-        from backend.app.core.config import settings
-        from backend.app.core.exceptions import SecurityError
 
         # Check if custom tenant key exists in SQLite integrations
         custom_tenant_key = None
@@ -113,7 +158,7 @@ class LocalToolsManager:
             "{\"type\": \"doc\", \"content\": [...]}. No markdown wrap, no explanations."
         )
 
-        candidate_models = ["gemini-1.5-flash", "gemini-2.5-flash"]
+        candidate_models = get_candidate_models(api_key=api_key)
         last_exception = None
 
         for m_name in candidate_models:
@@ -147,12 +192,30 @@ class LocalToolsManager:
                             return tiptap_json
                 except Exception as e:
                     last_exception = e
-                    err_str = str(e).lower()
-                    if is_custom or "key" in err_str or "auth" in err_str or "credential" in err_str or "400" in err_str or "401" in err_str or "403" in err_str or "unauthorized" in err_str or "invalid" in err_str or "api" in err_str:
+                    err_str = str(e)
+                    err_code = getattr(e, "code", getattr(e, "status_code", None))
+                    is_auth_error = (
+                        err_code in (401, 403) or
+                        "API_KEY_INVALID" in err_str or
+                        "API key not valid" in err_str or
+                        "UNAUTHENTICATED" in err_str or
+                        "PERMISSION_DENIED" in err_str
+                    )
+                    if is_auth_error:
                         raise SecurityError("Invalid or expired Gemini API key configured for this client.", status_code=401)
+                    logger.warning(f"Gemini generation attempt failed for model '{clean_model_name}' (config={bool(gen_config)}): {err_str}")
                     continue
 
-        raise SecurityError("Invalid or expired Gemini API key configured for this client.", status_code=401)
+        if last_exception:
+            last_str = str(last_exception)
+            last_code = getattr(last_exception, "code", getattr(last_exception, "status_code", None))
+            if last_code == 404 or "404" in last_str or "not found" in last_str.lower():
+                raise NotFoundError(f"Gemini API model not found or unavailable: {last_str}")
+            else:
+                status = last_code if isinstance(last_code, int) and 400 <= last_code < 600 else 500
+                raise AppException(f"Gemini API report generation failed: {last_str}", status_code=status)
+
+        raise AppException("Gemini API report generation failed with no model output.", status_code=500)
 
     def _get_fallback_tiptap(self, user_prompt: str, client_id: str = "client_abc") -> dict:
         """Generates a rich executive report blueprint with dynamic comparison tables and metrics."""

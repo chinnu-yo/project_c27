@@ -1,8 +1,11 @@
 import os
 import sqlite3
 import yaml
-from typing import Dict, Any, List
+import logging
+from typing import Dict, Any, List, Optional
 from backend.app.core.exceptions import DatabaseError, ValidationError, SecurityError
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = "client_vault.db"
 TOOLS_YAML_PATH = os.path.join(
@@ -256,6 +259,7 @@ class SQLiteService:
             )
             row = cursor.fetchone()
             conn.close()
+            return dict(row) if row else None
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to fetch integration record: {str(e)}")
 
@@ -269,8 +273,11 @@ class SQLiteService:
                     encrypted = item.get("encrypted_credential")
                     if encrypted:
                         return decrypt_credential(encrypted)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(
+                f"Failed to retrieve or decrypt tenant credential for client '{client_id}', provider '{provider_keyword}': {e}",
+                exc_info=True
+            )
         return None
 
     def update_integration_test_status(self, integration_id: str, client_id: str, status: str, tested_at: int) -> bool:

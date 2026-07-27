@@ -70,11 +70,11 @@ export default function WorkspacePage() {
         setEditorContent(data.tiptap_json);
       } else {
         setEditorContent(null);
-        setError('⚠️ Report Generation Failed: The API key configured in Integrations Settings is invalid or rejected by Gemini.');
+        setError(`⚠️ Report Generation Failed: ${data?.message || data?.detail || JSON.stringify(data)}`);
       }
     } catch (err: any) {
       setEditorContent(null);
-      setError('⚠️ Report Generation Failed: The API key configured in Integrations Settings is invalid or rejected by Gemini.');
+      setError(`⚠️ Report Generation Failed: ${err.message || String(err)}`);
     } finally {
       setLoading(false);
     }
@@ -140,7 +140,7 @@ export default function WorkspacePage() {
         {/* Left Control Panel */}
         <div className="glass-card" style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Report Directives</h3>
-          
+
           {/* Template Picker */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
