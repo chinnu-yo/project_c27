@@ -26,5 +26,5 @@ class DatabaseError(AppException):
 
 class SecurityError(AppException):
     """Raised when authentication, tenant isolation, or access check fails."""
-    def __init__(self, message: str):
-        super().__init__(message, status_code=403)
+    def __init__(self, message: str, status_code: int = 401):
+        super().__init__(message, status_code=status_code)

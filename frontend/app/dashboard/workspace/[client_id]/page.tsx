@@ -66,13 +66,15 @@ export default function WorkspacePage() {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-      if (data.status === 'success') {
+      if (data && data.status === 'success' && data.tiptap_json) {
         setEditorContent(data.tiptap_json);
       } else {
-        setError(data.generated_system_prompt || 'Failed to orchestrate report.');
+        setEditorContent(null);
+        setError('⚠️ Report Generation Failed: The API key configured in Integrations Settings is invalid or rejected by Gemini.');
       }
     } catch (err: any) {
-      setError(err.message || 'Connection failure.');
+      setEditorContent(null);
+      setError('⚠️ Report Generation Failed: The API key configured in Integrations Settings is invalid or rejected by Gemini.');
     } finally {
       setLoading(false);
     }
@@ -131,12 +133,6 @@ export default function WorkspacePage() {
         <h1 style={{ fontSize: '32px', fontWeight: 700, marginBottom: '8px' }}>Split Canvas Workspace</h1>
         <p style={{ color: 'var(--text-secondary)' }}>Client: <strong style={{ color: 'var(--color-teal)' }}>{client_id}</strong></p>
       </div>
-
-      {error && (
-        <div style={{ color: 'var(--color-alert)', background: 'hsla(342, 85%, 60%, 0.1)', padding: '12px', borderRadius: '8px', border: '1px solid hsla(342, 85%, 60%, 0.2)', fontSize: '14px' }}>
-          {error}
-        </div>
-      )}
 
       {/* Side-by-side editing split canvas */}
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
@@ -203,6 +199,24 @@ export default function WorkspacePage() {
               </div>
             )}
           </div>
+
+          {/* Red Error Box Displayed Directly on Workspace Canvas */}
+          {error && (
+            <div className="glass-card" style={{
+              padding: '16px 20px',
+              borderRadius: '12px',
+              borderLeft: '4px solid #ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              color: '#fca5a5',
+              fontSize: '14px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              {error}
+            </div>
+          )}
 
           {editorContent ? (
             <TiptapEditor content={editorContent} onChange={setEditorContent} />

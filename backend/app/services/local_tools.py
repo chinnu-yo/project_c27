@@ -34,16 +34,27 @@ class LocalToolsManager:
             raise ValidationError(f"Unknown local tool execution path: {name}")
 
     async def execute_in_app_loop(self, user_prompt: str, context: List[str], blueprint: Dict[str, Any]) -> dict:
-        """Runs the Gemini structured compilation loop incorporating tool and blueprint contexts."""
+        """Runs the Gemini structured compilation loop incorporating tool and blueprint contexts with strict key enforcement."""
         client_id = blueprint.get("client_id", "client_abc")
-        from backend.app.core.config import settings, get_effective_tenant_key
-        effective_gemini_key = get_effective_tenant_key(client_id, "Gemini", self.sqlite_service)
+        from backend.app.core.config import settings
+        from backend.app.core.exceptions import SecurityError
 
-        if not effective_gemini_key:
-            # Sandbox fallback payload if no Gemini API Key is available
-            return self._get_fallback_tiptap(user_prompt, client_id)
+        # Check if custom tenant key exists in SQLite integrations
+        custom_tenant_key = None
+        if self.sqlite_service:
+            custom_tenant_key = self.sqlite_service.get_tenant_credential(client_id, "Gemini")
 
-        genai.configure(api_key=effective_gemini_key)
+        if custom_tenant_key:
+            api_key = custom_tenant_key
+            is_custom = True
+        else:
+            api_key = settings.gemini_api_key
+            is_custom = False
+
+        if not api_key:
+            raise SecurityError("Invalid or expired Gemini API key configured for this client.", status_code=401)
+
+        genai.configure(api_key=api_key)
         
         # Step 1: Pre-fetch metrics data locally to feed variables straight to LLM context pool
         ga4_data = get_ga4_metrics(client_id)
@@ -136,10 +147,12 @@ class LocalToolsManager:
                             return tiptap_json
                 except Exception as e:
                     last_exception = e
+                    err_str = str(e).lower()
+                    if is_custom or "key" in err_str or "auth" in err_str or "credential" in err_str or "400" in err_str or "401" in err_str or "403" in err_str or "unauthorized" in err_str or "invalid" in err_str or "api" in err_str:
+                        raise SecurityError("Invalid or expired Gemini API key configured for this client.", status_code=401)
                     continue
 
-        # Fallback to dynamic structured template if live call fails or API key issue occurs
-        return self._get_fallback_tiptap(user_prompt, client_id)
+        raise SecurityError("Invalid or expired Gemini API key configured for this client.", status_code=401)
 
     def _get_fallback_tiptap(self, user_prompt: str, client_id: str = "client_abc") -> dict:
         """Generates a rich executive report blueprint with dynamic comparison tables and metrics."""
