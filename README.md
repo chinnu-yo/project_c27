@@ -17,20 +17,20 @@ Detailed run commands will be populated during system integration.
 
 <p align="center">
 <h4>Login page</h4><br>
-  <img src="D:\personal\fuck off\CHHINMAY\project_c27\Screenshot 2026-08-02 131052.png" width="800"><br><br>
+  <img src="project_c27\Screenshot 2026-08-02 131052.png" width="800"><br><br>
 
   <h4>Dashboard</h4><br>
-  <img src="D:\personal\fuck off\CHHINMAY\project_c27\Screenshot 2026-08-02 131110.png" width="800"><br><br>
+  <img src="project_c27\Screenshot 2026-08-02 131110.png" width="800"><br><br>
   
   <h4>Client Templates</h4><br>
-  <img src="D:\personal\fuck off\CHHINMAY\project_c27\Screenshot 2026-08-02 131345.png" width="800"><br><br>
+  <img src="project_c27\Screenshot 2026-08-02 131345.png" width="800"><br><br>
 
   <h4>Report generator</h4><br>
-  <img src="D:\personal\fuck off\CHHINMAY\project_c27\Screenshot 2026-08-02 131246.png" width="800"><br><br>
+  <img src="project_c27\Screenshot 2026-08-02 131246.png" width="800"><br><br>
 
   <h4>intigrations settings</h4><br>
-  <img src="c:\Users\Honnu\OneDrive\Pictures\Screenshots\Screenshot 2026-08-02 131310.png" width="800">
+  <img src="project_c27\Screenshots\Screenshot 2026-08-02 131310.png" width="800">
 
   <h4>Team and access management</h4><br>
-  <img src="D:\personal\fuck off\CHHINMAY\project_c27\Screenshot 2026-08-02 131331.png" width="800">
+  <img src="project_c27\Screenshot 2026-08-02 131331.png" width="800">
 </p>
